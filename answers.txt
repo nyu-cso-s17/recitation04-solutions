@@ -1,0 +1,96 @@
+gcc -g -c foo.c
+gcc -g -c main.c
+gcc foo.o main.o -o foo
+
+The object files need to be created first i.e. `foo.o` from `foo.c` and `main.o` from `main.c`. Then the final executable is created by linking these object files.
+
+----------------------------------------
+
+FILES := foo.c main.c
+CC := gcc
+DEPS:= foo.h
+OBJ := foo.o main.o
+
+%.o: %.c $(DEPS)
+    $(CC) -c -o $@ $<
+
+foo: $(OBJ)
+    $(CC) -o $@ $^
+    
+clean :
+    rm -f $(OBJ) foo
+
+----------------------------------------
+
+We need a double pointer as *head deferences **head to give us the pointer to the head. This allows us to make global changes to the linked list in main using the functions in list.c. Using node* within the function instead will make local changes only which will not carry over globally once the function terminates due to scoping (i.e. no changes in main).
+
+----------------------------------------
+
+FILES := list.c main.c
+CC := gcc
+DEPS:= list.h
+OBJ := list.o main.o
+
+%.o: %.c $(DEPS)
+	$(CC) -c -o $@ $<
+
+foo: $(OBJ)
+	$(CC) -o $@ $^
+	
+clean :
+	rm -f $(OBJ) foo
+
+----------------------------------------
+
+The function remove_head() has a memory leak. The pointer n is not freed. The fix is to add the line:
+
+free(n);
+
+at the end of the function.
+
+----------------------------------------
+
+void insert_at(int value, int position, node** head) {
+    if (position == 0) {
+        add_head(value, head);
+        return;
+    }
+
+    int i = 0;
+    node* iterator = (struct node*) *head;
+    while (i < position - 1 && iterator != NULL) {
+        iterator = iterator->next;
+        i++;
+    }
+
+    if (iterator != NULL) {
+        node* tail = iterator->next;
+        node* n = (node*) malloc(sizeof(node));
+        n->value = value;
+        n->next = tail;
+        iterator->next = n;
+    }
+}
+
+void remove_at(int position, node** head) {
+    if (position == 0) {
+        remove_head(head);
+        return;
+    }
+
+    int i = 0;
+    node* iterator = (struct node*) *head;
+
+    while (i < position - 1 && iterator != NULL) {
+        i++;
+        iterator = iterator->next;
+    }
+
+    if (iterator != NULL && iterator->next != NULL) {
+        node* toDelete = iterator->next;
+        node* tail = toDelete->next;
+
+        iterator->next = tail;
+        free(toDelete);
+    }
+}
